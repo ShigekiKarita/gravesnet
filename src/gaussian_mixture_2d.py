@@ -1,6 +1,6 @@
 from chainer import cuda
 from chainer import function
-
+import numpy
 
 class GaussianMixture2D(function.Function):
 
@@ -30,7 +30,8 @@ class GaussianMixture2D(function.Function):
     """
 
     def forward_cpu(self, inputs):
-        return inputs,
+        result = numpy.empty_like(inputs[0])
+        return result,
 
     def forward_gpu(self, inputs):
         result = cuda.empty_like(inputs[0])

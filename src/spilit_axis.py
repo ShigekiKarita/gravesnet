@@ -2,6 +2,7 @@ import numpy
 from chainer import cuda
 from chainer import functions as F
 
+
 def to_indices(widths):
     """
     >>> to_indices([1, 2, 3, 1])

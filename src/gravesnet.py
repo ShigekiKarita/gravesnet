@@ -4,7 +4,7 @@ from chainer import cuda
 
 from src.gaussian_mixture_2d import gaussian_mixture_2d
 from src.spilit_axis import split_axis_by_widths
-
+from src.gradient_clip import gradient_clip
 
 def loss_func(m, y, t):
     y_mixws, y_means, y_stdds, y_corrs, y_e = split_axis_by_widths(y, [m, 2 * m, 2 * m, m, 1])
@@ -53,12 +53,16 @@ class GravesPredictionNet(chainer.FunctionSet):
 
         h1_in = self.l1_first(x) + self.l1_recur(state['h1'])
         c1, h1 = F.lstm(state['c1'], h1_in)
+        h1 = gradient_clip(h1, 10.0)
         h2_in = self.l2_first(x) + self.l2_recur(state['h2']) + self.l2_input(h1)
         c2, h2 = F.lstm(state['c2'], h2_in)
+        h2 = gradient_clip(h2, 10.0)
         h3_in = self.l3_first(x) + self.l3_recur(state['h3']) + self.l3_input(h2)
         c3, h3 = F.lstm(state['c3'], h3_in)
+        h3 = gradient_clip(h3, 10.0)
 
         y = self.l4(F.concat(h1, h2, h3))
+        y = gradient_clip(y, 100.0)
         m = self.ngauss
         loss = loss_func(self.ngauss, y, t)
 
@@ -147,3 +151,8 @@ def forward(model, x_list):
         h, new_loss = model.forward_one_step(h, current, next)
         loss += new_loss
     return loss
+
+from chainer import optimizers
+
+def train(model, x_list):
+    opt = optimizers.RMSpropGraves()

@@ -4,7 +4,8 @@ import chainer
 from chainer import cuda
 from chainer.functions import concat, split_axis
 from chainer.gradient_check import assert_allclose
-from chainer.testing import attr, condition, run_module
+from chainer import testing
+from chainer.testing import attr, condition
 
 import numpy
 
@@ -20,9 +21,9 @@ class TestSplitAxis(TestCase):
     def setUp(self):
         # self.ws = [2, 4]
         h = numpy.random.randint(1, 5)
-        self.ws = [numpy.random.randint(1, 5)] * h * numpy.random.randint(2, 5)
+        self.ws = [numpy.random.randint(1, 5)] * h * numpy.random.randint(1, 5)
         self.ws[0] = h
-        self.mini_batch = numpy.random.randint(1, 5) # FIXME: set 1 -> FAIL
+        self.mini_batch = numpy.random.randint(1, 5)  # FIXME: set 1 -> FAIL
 
     def check(self, widths):
         x_size = sum(self.ws)
@@ -47,4 +48,4 @@ class TestSplitAxis(TestCase):
         self.check(self.ws[0])
 
 
-run_module(__name__, __file__)
+testing.run_module(__name__, __file__)
