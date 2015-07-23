@@ -29,22 +29,15 @@ class GaussianMixture2D(function.Function):
         return: gradient of GMM-params
     """
 
-    def forward_cpu(self, inputs):
-        result = numpy.empty_like(inputs[0])
-        return result,
-
     def forward_gpu(self, inputs):
-        result = cuda.empty_like(inputs[0])
+        self.y = cuda.empty_like(inputs[0])
         cuda.elementwise(
             '''
-            /* Gaussian output */
             float* r,
-            /* Gaussian params */
             const float* w,
             const float* m1, const float* m2,
             const float* s1, const float* s2,
             const float* c,
-            /* Gaussian input */
             const float* x1, const float* x2
             ''',
             '''
@@ -54,34 +47,28 @@ class GaussianMixture2D(function.Function):
 
             z1 = pow(z1 - c[i] * z2, 2.0f);
             z2 = 1.0f - pow(c[i], 2.0f);
-            z3 = 2.0f * 3.141592654f * s1[i] * s2[i] * sqrt(z2)
-            r[i] = w[i] * exp(- z1 / (2.0f * z2)) / z3
+            z3 = 2.0f * 3.141592654f * s1[i] * s2[i] * sqrt(z2);
+            r[i] = w[i] * exp(- z1 / (2.0f * z2)) / z3;
             ''',
             'gaussian_mixture_2d_fwd'
-        )(result, *inputs)
-        return result,
-
-    def backward_cpu(self, inputs, grad_outputs):
-        return inputs,
+        )(self.y, *inputs)
+        return self.y,
 
     def backward_gpu(self, inputs, grad_outputs):
-        gradients = (cuda.empty_like(i) for i in inputs[:-2]) # w/o (x1, x2)
-        r = grad_outputs[0]
+        gradients = tuple(cuda.empty_like(i) for i in inputs[:-2]) # w/o (x1, x2)
+        args = gradients + inputs
         cuda.elementwise(
             '''
-            /* gradients */
+            const float* r,
             float* gw,
             float* gm1, float* gm2,
             float* gs1, float* gs2,
             float* gc,
-            /* inputs */
             const float* w,
             const float* m1, const float* m2,
             const float* s1, const float* s2,
             const float* c,
-            const float* x1, const float* x2, // scholar
-            /* grad_outputs */
-            const float* r
+            const float* x1, const float* x2
             ''',
             '''
             const float z1 = (*x1 - m1[i]) / s1[i];
@@ -97,15 +84,15 @@ class GaussianMixture2D(function.Function):
             gc[i]  = z1 * z2 + c[i] * (1.0f - z3 * z4);
             ''',
             'gaussian_mixture_2d_bwd'
-        )(*gradients + inputs + grad_outputs)
-        return gradients,
+        )(self.y, *args)
+        return gradients + (None, None)  # for target signals
 
 
-def gaussian_mixture_2d_reference(mix_weights, means, stddevs, correlations):
-    """using chainer's automated propagation"""
-
-
-def gaussian_mixture_2d(mix_weights1, mix_weights2, means1, means2,
-                        stddevs1, stddevs2, correlations, positions):
-    return GaussianMixture2D()(mix_weights1, mix_weights2, means1, means2,
-                               stddevs1, stddevs2, correlations, positions)
+def gaussian_mixture_2d(
+        mix_weights, means1, means2,
+        stddevs1, stddevs2, correlations,
+        position1, position2):
+    return GaussianMixture2D()(
+        mix_weights, means1, means2,
+        stddevs1, stddevs2, correlations,
+        position1, position2)

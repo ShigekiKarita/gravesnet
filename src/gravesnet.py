@@ -6,20 +6,23 @@ from src.gaussian_mixture_2d import gaussian_mixture_2d
 from src.spilit_axis import split_axis_by_widths
 from src.gradient_clip import gradient_clip
 
-def loss_func(m, y, t):
+
+def parse_args(m, y, t_x, t_e):
     y_mixws, y_means, y_stdds, y_corrs, y_e = split_axis_by_widths(y, [m, 2 * m, 2 * m, m, 1])
     y_mixws = F.softmax(y_mixws)
     y_means0, y_means1 = split_axis_by_widths(y_means, 2)
     y_stdds0, y_stdds1 = split_axis_by_widths(F.exp(y_stdds), 2)
     y_corrs = F.tanh(y_corrs)
 
-    t_x1, t_x2, t_e = split_axis_by_widths(t, 3)
+    t_x1, t_x2 = split_axis_by_widths(t_x, 2)
+    return (y_mixws, y_means0, y_means1, y_stdds0, y_stdds1, y_corrs, t_x1, t_x2), (y_e, t_e)
 
-    px_given_y = gaussian_mixture_2d(
-        y_mixws, y_means0, y_means1, y_stdds0, y_stdds1, y_corrs,
-        t_x1, t_x2)
-    loss_x = -F.log(F.sum(px_given_y))
-    loss_e = F.sigmoid_cross_entropy(y_e, t_e)
+
+def loss_func(m, y, t_x, t_e):
+    x, e = parse_args(m, y, t_x, t_e)
+    px_given_y = gaussian_mixture_2d(*x)
+    loss_x = -F.log(F.sum(px_given_y))  # FIXME: wrong average on mini-batch?
+    loss_e = F.sigmoid_cross_entropy(*e)
     loss = loss_x + loss_e
     return loss
 

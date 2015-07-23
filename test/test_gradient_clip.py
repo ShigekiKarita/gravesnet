@@ -23,17 +23,26 @@ class TestGradientClip(unittest.TestCase):
         self.y_grad = numpy.random.randn(4, 3).astype(numpy.float32)
         lower = min(self.a, self.b)
         upper = max(self.a, self.b)
-        self.x_grad = numpy.clip(self.y_grad, lower, upper)
+        self.x_grad_ab = numpy.clip(self.y_grad, lower, upper)
+        self.x_grad_a = numpy.clip(self.y_grad, -abs(self.a), abs(self.a))
 
     def check_backward(self, f):
         x = chainer.Variable(f(self.x))
-        y_t = gradient_clip(x, self.a, self.b)
-        y_t.creator.forward((x.data,))
-        assert_allclose(y_t.data, x.data)
 
-        y_t.grad = f(self.y_grad)
-        y_t.backward()
-        assert_allclose(x.grad, f(self.x_grad))
+        y = gradient_clip(x, self.a, self.b)
+        y.creator.forward((x.data,))
+        y.grad = f(self.y_grad)
+        y.backward()
+        assert_allclose(y.data, x.data)
+        assert_allclose(x.grad, f(self.x_grad_ab))
+
+        y = gradient_clip(x, self.a)
+        y.creator.forward((x.data,))
+        y.grad = f(self.y_grad)
+        y.backward()
+        assert_allclose(y.data, x.data)
+        assert_allclose(x.grad, f(self.x_grad_a))
+
 
     @condition.retry(100)
     def test_backward_cpu(self):
