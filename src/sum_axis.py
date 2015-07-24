@@ -29,8 +29,8 @@ class SumAxis(function.Function):
         gx = cuda.empty_like(inputs[0])
         cuda.elementwise(
             'float* y, const float* b, const int n_channel',
-            'y[i] = b[i % n_channel]',
-            'sum_axis_bwd')(gx, grad_outputs[0], grad_outputs[0].size)
+            'y[i] = b[i / n_channel]',
+            'sum_axis_bwd')(gx, grad_outputs[0], gx.shape[1])
         return gx,
 
 

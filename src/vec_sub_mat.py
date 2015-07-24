@@ -5,10 +5,6 @@ import chainer.variable
 
 class VecSubMat(function.Function):
 
-    @property
-    def label(self):
-        return '_ - _'
-
     def __init__(self, lhs_bwd):
         self.lhs_bwd = lhs_bwd
 
@@ -26,9 +22,9 @@ class VecSubMat(function.Function):
     def forward_gpu(self, x):
         y = x[1].copy()
         cuda.elementwise(
-            'float* y, const float* b, const int n_channel',
-            'y[i] = b[i % n_channel] - y[i]',
-            'sub_bias')(y, x[0], x[0].size)
+            'float* y, float* b, int nc',
+            'y[i] = b[i / nc] - y[i];',
+            'sub_bias')(y, x[0], x[1].shape[1])
         return y,
 
     def backward_cpu(self, x, gy):

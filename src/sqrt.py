@@ -5,10 +5,6 @@ import numpy
 
 class Sqrt(function.Function):
 
-    @property
-    def label(self):
-        return 'sqrt'
-
     def check_type_forward(self, in_types):
         type_check.expect(in_types.size() == 1)
 
@@ -20,8 +16,11 @@ class Sqrt(function.Function):
         self.y = cuda.cumath.sqrt(inputs[0])
         return self.y,
 
-    def backward(self, inputs, grad_outputs):
-        return grad_outputs[0] * 0.5 / self.y,
+    def backward_cpu(self, inputs, grad_outputs):
+        return force_array(numpy.float32(0.5) * grad_outputs[0] / self.y),
+
+    def backward_gpu(self, inputs, grad_outputs):
+        return 0.5 * grad_outputs[0] / self.y,
 
 
 def mysqrt(x):

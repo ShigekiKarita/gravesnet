@@ -3,7 +3,7 @@ from chainer import function
 from chainer import functions
 import numpy
 
-from src.sprt import mysqrt
+from src.sqrt import mysqrt
 from src.vec_sub_mat import vec_sub_mat
 
 

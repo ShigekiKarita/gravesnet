@@ -8,7 +8,7 @@ from src.gradient_clip import gradient_clip
 from src.sum_axis import sum_axis
 
 
-def parse_args(m, y, t_x, t_e):
+def split_args(m, y, t_x, t_e):
     y_mixws, y_means, y_stdds, y_corrs, y_e = split_axis_by_widths(y, [m, 2 * m, 2 * m, m, 1])
     y_mixws = F.softmax(y_mixws)
     y_means0, y_means1 = split_axis_by_widths(y_means, 2)
@@ -20,8 +20,8 @@ def parse_args(m, y, t_x, t_e):
 
 
 def loss_func(m, y, t_x, t_e):
-    x, e = parse_args(m, y, t_x, t_e)
-    px_given_y = gaussian_mixture_2d_ref(*x)
+    x, e = split_args(m, y, t_x, t_e)
+    px_given_y = gaussian_mixture_2d(*x)
     loss_x = -F.sum(F.log(sum_axis(px_given_y))) / y.data.shape[0]
     loss_e = F.sigmoid_cross_entropy(*e)
     loss = loss_x + loss_e
@@ -51,9 +51,10 @@ class GravesPredictionNet(chainer.FunctionSet):
             l4=F.Linear(nhidden * nlayer, self.noutput)
         )
 
-    def forward_one_step(self, x_data, y_data, state, train=True):
+    def forward_one_step(self, x_data, t_x_data, t_e_data, state, train=True):
         x = chainer.Variable(x_data, volatile=not train)
-        t = chainer.Variable(y_data, volatile=not train)
+        t_x = chainer.Variable(t_x_data, volatile=not train)
+        t_e = chainer.Variable(t_e_data, volatile=not train)
 
         h1_in = self.l1_first(x) + self.l1_recur(state['h1'])
         c1, h1 = F.lstm(state['c1'], h1_in)
@@ -68,7 +69,7 @@ class GravesPredictionNet(chainer.FunctionSet):
         y = self.l4(F.concat(h1, h2, h3))
         y = gradient_clip(y, 100.0)
         m = self.ngauss
-        loss = loss_func(self.ngauss, y, t)
+        loss = loss_func(self.ngauss, y, t_x, t_e)
 
         state = {'c1': c1, 'h1': h1, 'c2': c2, 'h2': h2, 'c3': c3, 'h3': h3}
         return state, loss

@@ -21,9 +21,10 @@ class TestSplitAxis(TestCase):
     def setUp(self):
         # self.ws = [2, 4]
         h = numpy.random.randint(1, 5)
-        self.ws = [numpy.random.randint(1, 5)] * h * numpy.random.randint(1, 5)
+        l = h * numpy.random.randint(1, 5)
+        self.ws = [numpy.random.randint(1, 5)] * l
         self.ws[0] = h
-        self.mini_batch = numpy.random.randint(1, 5)  # FIXME: set 1 -> FAIL
+        self.mini_batch = numpy.random.randint(1, 5)
 
     def check(self, widths):
         x_size = sum(self.ws)
