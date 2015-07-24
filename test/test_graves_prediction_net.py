@@ -1,8 +1,13 @@
 from unittest import TestCase
 
-__author__ = 'karita'
+
+from src.gravesnet import GravesPredictionNet
 
 
 class TestGravesPredictionNet(TestCase):
-  def test_forward_one_step(self):
-    self.fail()
+
+    def setUp(self):
+        self.model = GravesPredictionNet()
+
+    def test_forward_one_step(self):
+        self.fail("not test yet")

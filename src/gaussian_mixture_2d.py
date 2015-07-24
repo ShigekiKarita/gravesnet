@@ -72,15 +72,17 @@ class GaussianMixture2D(function.Function):
 
         z1 = (x1 - m1) / s1
         z2 = (x2 - m2) / s2
-        z3 = 1.0 / (1.0 - c**2)
-        z4 = (z1 - c * z2)**2
+        z3 = 1.0 / (1.0 - c**2.0)
+        z4 = (z1 - c * z2)**2.0
 
         gm1 = z3 / s1 * (z1 - c * z2)
         gm2 = z3 / s2 * (z2 - c * z1)
         gs1 = (x1 - m1) * gm1 - 1.0
         gs2 = (x2 - m2) * gm2 - 1.0
         gc = z1 * z2 + c * (1.0 - z3 * z4)
-        return (gw,) + tuple(- self.y * g for g in (gm1, gm2, gs1, gs2, gc)) + (None, None)
+
+        gt = tuple(- self.y * g for g in (gm1, gm2, gs1, gs2, gc))
+        return (gw,) + gt + (None, None)
 
     def backward_gpu(self, inputs, grad_outputs):
         gradients = tuple(cuda.empty_like(i) for i in inputs[:-2]) # w/o (x1, x2)
@@ -108,8 +110,8 @@ class GaussianMixture2D(function.Function):
             gw[i] = w[i] + z5;
             gm1[i] = z3 / s1[i] * (z1 - c[i] * z2);
             gm2[i] = z3 / s2[i] * (z2 - c[i] * z1);
-            gs1[i] = z3 * z1 * gm1[i] * s1[i] - 1.0f;
-            gs2[i] = z3 * z2 * gm2[i] * s2[i] - 1.0f;
+            gs1[i] = (*x1 - m1[i]) * gm1[i] - 1.0f;
+            gs2[i] = (*x2 - m2[i]) * gm2[i] - 1.0f;
             gc[i]  = z1 * z2 + c[i] * (1.0f - z3 * z4);
 
             gm1[i] *= z5;

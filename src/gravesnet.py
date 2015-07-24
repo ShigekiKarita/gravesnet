@@ -20,13 +20,16 @@ def split_args(m, y, t_x, t_e):
     return (y_mixws, y_means0, y_means1, y_stdds0, y_stdds1, y_corrs, t_x1, t_x2), (y_e, t_e)
 
 
+def concat_losses(p, e, t_e):
+    loss_x = -F.sum(F.log(sum_axis(p))) / numpy.float32(p.data.shape[0])
+    loss_e = F.sigmoid_cross_entropy(*e)
+    return loss_x + loss_e
+
+
 def loss_func(m, y, t_x, t_e):
     x, e = split_args(m, y, t_x, t_e)
-    px_given_y = gaussian_mixture_2d_ref(*x)
-    loss_x = -F.sum(F.log(sum_axis(px_given_y))) / numpy.float32(y.data.shape[0])
-    loss_e = F.sigmoid_cross_entropy(*e)
-    loss = loss_x + loss_e
-    return loss
+    p = gaussian_mixture_2d(*x)
+    return concat_losses(p, e, t_e)
 
 
 class GravesPredictionNet(chainer.FunctionSet):
