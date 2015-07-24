@@ -2,7 +2,8 @@ import chainer
 import chainer.functions as F
 from chainer import cuda
 
-from src.gaussian_mixture_2d import gaussian_mixture_2d_ref, gaussian_mixture_2d
+from src.gaussian_mixture_2d import gaussian_mixture_2d
+from src.gaussian_mixture_2d_ref import gaussian_mixture_2d_ref
 from src.spilit_axis import split_axis_by_widths
 from src.gradient_clip import gradient_clip
 from src.sum_axis import sum_axis
@@ -21,8 +22,8 @@ def split_args(m, y, t_x, t_e):
 
 def loss_func(m, y, t_x, t_e):
     x, e = split_args(m, y, t_x, t_e)
-    px_given_y = gaussian_mixture_2d(*x)
-    loss_x = -F.sum(F.log(sum_axis(px_given_y))) / y.data.shape[0]
+    px_given_y = gaussian_mixture_2d_ref(*x)
+    loss_x = -F.sum(F.log(sum_axis(px_given_y))) / numpy.float32(y.data.shape[0])
     loss_e = F.sigmoid_cross_entropy(*e)
     loss = loss_x + loss_e
     return loss

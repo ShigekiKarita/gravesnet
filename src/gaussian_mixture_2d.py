@@ -1,10 +1,6 @@
 from chainer import cuda
 from chainer import function
-from chainer import functions
 import numpy
-
-from src.sqrt import mysqrt
-from src.vec_sub_mat import vec_sub_mat
 
 
 class GaussianMixture2D(function.Function):
@@ -137,13 +133,3 @@ def gaussian_mixture_2d(
         stddevs1, stddevs2, correlations,
         position1, position2)
 
-
-def gaussian_mixture_2d_ref(*inputs):
-    w, m1, m2, s1, s2, c, x1, x2 = inputs
-    z1 = vec_sub_mat(x1, m1, lhs_bwd=False) / s1
-    z2 = vec_sub_mat(x2, m2, lhs_bwd=False) / s2
-    z1 = (z1 - c * z2)**2
-    z2 = 1.0 - c**2
-    z3 = 2.0 * numpy.pi * s1 * s2 * mysqrt(z2)
-    r = w * functions.exp(- z1 / (2.0 * z2)) / z3
-    return r
