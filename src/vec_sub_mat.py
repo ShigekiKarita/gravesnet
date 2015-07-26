@@ -30,14 +30,16 @@ class VecSubMat(function.Function):
     def backward_cpu(self, x, gy):
         glhs = None
         if self.lhs_bwd:
-            glhs = gy[0].sum(1).reshape(x[0].shape)
+            s = x[0].shape
+            glhs = gy[0].sum(1).reshape(s) / s[1]
         return glhs, -gy[0]
 
     def backward_gpu(self, x, gy):
         glhs = None
         if self.lhs_bwd:
             with cuda.using_cumisc():
-                glhs = cuda.cumisc.sum(gy[0], 1).reshape(x[0].shape)
+                s = x[0].shape
+                glhs = cuda.cumisc.sum(gy[0], 1).reshape(s) / s[1]
         return glhs, -gy[0]
 
 

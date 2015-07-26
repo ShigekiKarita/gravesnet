@@ -23,9 +23,9 @@ class TestGaussianMixture2d(unittest.TestCase):
 
     def setUp(self):
         # each 2D-Gaussian contains 6 params: weight, mean(2), stddev(2), corr
-        self.ngauss = 1
+        self.ngauss = 2
         input_size = 6 * self.ngauss + 1
-        mini_batch = 1
+        mini_batch = 3
         self.x   = uniform(-1, 1, (mini_batch, input_size)).astype(numpy.float32)
         self.t_x = uniform(-1, 1, (mini_batch, 2)).astype(numpy.float32)
         b_rand   = [[binomial(1, 0.9) for _ in range(mini_batch)]]
@@ -45,7 +45,7 @@ class TestGaussianMixture2d(unittest.TestCase):
         func = loss.creator
         f = lambda: func.forward((self.ngauss, x.data, t_x.data, t_e.data))
         loss.grad *= 10.0
-        gx, = gradient_check.numerical_grad(f, (x.data,), (loss.grad,), eps=1e-2)
+        # gx, = gradient_check.numerical_grad(f, (x.data,), (loss.grad,), eps=1e-2)
         return x.grad, loss.data
 
     def check_ref(self):
@@ -57,18 +57,19 @@ class TestGaussianMixture2d(unittest.TestCase):
         q = gaussian_mixture_2d_ref(*y)
         gradient_check.assert_allclose(p.data, q.data)
 
+
         # TODO: Check backward too
-        # x.grad = None
-        # p_loss = gravesnet.concat_losses(p, e, t_e)
-        # p_loss.backward()
-        # p_xg = x.grad.copy()
-        # x.grad = None
-        # q_loss = gravesnet.concat_losses(q, e, t_e)
-        # q_loss.backward()
-        # q_xg = x.grad
-        # print(p_xg, q_xg)
-        # numpy.testing.assert_almost_equal(cuda.to_cpu(p_loss.data), cuda.to_cpu(q_loss.data))
-        # gradient_check.assert_allclose(p_xg, q_xg)
+        x.grad = None
+        p_loss = gravesnet.concat_losses(p, e, t_e)
+        q_loss = gravesnet.concat_losses(q, e, t_e)
+        p_loss.backward()
+        p_xg = x.grad.copy()
+        x.grad = None
+        q_loss.backward()
+        q_xg = x.grad.copy()
+        print(p_xg, q_xg)
+        gradient_check.assert_allclose(p_loss.data, q_loss.data)
+        gradient_check.assert_allclose(p_xg, q_xg)
 
     @condition.retry(3)
     def test_original_versus_chainer_cpu(self):

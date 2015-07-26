@@ -16,7 +16,7 @@ def split_args(m, y, t_x, t_e):
     y_stdds0, y_stdds1 = split_axis_by_widths(F.exp(y_stdds), 2)
     y_corrs = F.tanh(y_corrs)
 
-    t_x1, t_x2 = split_axis_by_widths(t_x, 2)
+    t_x1, t_x2 = split_axis_by_widths(t_x, [1, 1])
     return (y_mixws, y_means0, y_means1, y_stdds0, y_stdds1, y_corrs, t_x1, t_x2), (y_e, t_e)
 
 
@@ -37,23 +37,33 @@ class GravesPredictionNet(chainer.FunctionSet):
     ref: sec. 4 in http://arxiv.org/abs/1308.0850
     """
 
-    def __init__(self, ninput=3, nhidden=400, nlayer=3, ngauss=30):
-        self.ngauss = ngauss
-        self.noutput = 1 + 4 * self.ngauss
+    def __init__(self, ninput=3, nhidden=100, ngauss=30):
         super(GravesPredictionNet, self).__init__(
-            l1_first=F.Linear(ninput, nhidden, nobias=True),
-            l1_recur=F.Linear(nhidden, nhidden),
+            l1_first=F.Linear(ninput,  4 * nhidden, nobias=True),
+            l1_recur=F.Linear(nhidden, 4 * nhidden),
 
-            l2_first=F.Linear(ninput, nhidden, nobias=True),
-            l2_recur=F.Linear(nhidden, nhidden),
-            l2_input=F.Linear(nhidden, nhidden, nobias=True),
+            l2_first=F.Linear(ninput,  4 * nhidden, nobias=True),
+            l2_recur=F.Linear(nhidden, 4 * nhidden),
+            l2_input=F.Linear(nhidden, 4 * nhidden, nobias=True),
 
-            l3_first=F.Linear(ninput, nhidden, nobias=True),
-            l3_recur=F.Linear(nhidden, nhidden),
-            l3_input=F.Linear(nhidden, nhidden, nobias=True),
+            l3_first=F.Linear(ninput,  4 * nhidden, nobias=True),
+            l3_recur=F.Linear(nhidden, 4 * nhidden),
+            l3_input=F.Linear(nhidden, 4 * nhidden, nobias=True),
 
-            l4=F.Linear(nhidden * nlayer, self.noutput)
+            l4=F.Linear(nhidden * 3, 1 + ngauss * 6)
         )
+
+    def initial_state(self, shape, context, mod):
+        state = dict()
+        make_v = lambda m, s: chainer.Variable(context(m.zeros(s, dtype=numpy.float32)))
+        for n in range(1, 4):
+            state.update(
+                {
+                    'h%s' % n: make_v(mod, shape),
+                    'c%s' % n: make_v(mod, shape)
+                }
+            )
+        return state
 
     def forward_one_step(self, x_data, t_x_data, t_e_data, state, train=True):
         x = chainer.Variable(x_data, volatile=not train)
@@ -70,10 +80,10 @@ class GravesPredictionNet(chainer.FunctionSet):
         c3, h3 = F.lstm(state['c3'], h3_in)
         h3 = gradient_clip(h3, 10.0)
 
-        y = self.l4(F.concat(h1, h2, h3))
+        y = self.l4(F.concat((h1, h2, h3)))
         y = gradient_clip(y, 100.0)
-        m = self.ngauss
-        loss = loss_func(self.ngauss, y, t_x, t_e)
+        n = int((y.data.shape[1] - 1) / 6)
+        loss = loss_func(n, y, t_x, t_e)
 
         state = {'c1': c1, 'h1': h1, 'c2': c2, 'h2': h2, 'c3': c3, 'h3': h3}
         return state, loss
