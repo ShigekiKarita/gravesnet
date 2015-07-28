@@ -54,21 +54,21 @@ class GravesPredictionNet(chainer.FunctionSet):
             l4=F.Linear(nhidden * 3, 1 + ngauss * 6)
         )
 
-    def initial_state(self, minibatch_size, context, mod):
+    def initial_state(self, minibatch_size, context, train=True):
         state = dict()
         nhidden = self.l1_recur.W.shape[1]
         shape = (minibatch_size, nhidden)
-        make_v = lambda m, s: chainer.Variable(context(m.zeros(s, dtype=numpy.float32)))
+        make_v = lambda : chainer.Variable(context(numpy.zeros(shape, dtype=numpy.float32)), volatile=not train)
         for n in range(1, 4):
             state.update(
                 {
-                    'h%s' % n: make_v(mod, shape),
-                    'c%s' % n: make_v(mod, shape)
+                    'h%s' % n: make_v(),
+                    'c%s' % n: make_v()
                 }
             )
         return state
 
-    def forward_one_step(self, x_data, t_x_data, t_e_data, state, train=True):
+    def forward_one_step(self, state, x_data, t_x_data, t_e_data, train=True):
         x = chainer.Variable(x_data, volatile=not train)
         t_x = chainer.Variable(t_x_data, volatile=not train)
         t_e = chainer.Variable(t_e_data, volatile=not train)
