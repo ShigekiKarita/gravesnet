@@ -6,8 +6,7 @@ python:
 
 install:
   - pip install chainer
-  - pip install scipy
   - pip install nose
 
 script:
-  - nosetests -a '!gpu'
+  - nosetests -a '!gpu,!local'

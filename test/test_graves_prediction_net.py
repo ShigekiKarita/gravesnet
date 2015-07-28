@@ -3,6 +3,8 @@ from unittest import TestCase
 import chainer
 from chainer import cuda, testing
 from chainer.testing import attr
+from nose.plugins.attrib import attr as nattr
+
 from chainer import computational_graph as c
 
 import numpy
@@ -34,6 +36,7 @@ class TestGravesPredictionNet(TestCase):
         self.state = self.model.initial_state(self.mini_batch, self.context, self.mod)
         self.state, self.loss = self.model.forward_one_step(x, t_x, t_e, self.state)
 
+    @nattr(local=True)
     def test_forward_cpu(self):
         self.mod = numpy
         self.context = lambda x: x
@@ -41,7 +44,7 @@ class TestGravesPredictionNet(TestCase):
         with open("gravesnet.dot", "w") as o:
             o.write(c.build_computational_graph((self.loss,), False).dump())
 
-
+    @nattr(local=True)
     @attr.gpu
     def test_forward_gpu(self):
         self.model.to_gpu()
