@@ -2,7 +2,7 @@ from unittest import TestCase
 
 import numpy
 
-from src.dataset import parse_IAMxml, parse_IAMtxt
+from src.dataset import parse_IAMxml
 
 class TestParseIAMxml(TestCase):
     def test_parse_IAMxml(self):

@@ -37,7 +37,8 @@ class GravesPredictionNet(chainer.FunctionSet):
     ref: sec. 4 in http://arxiv.org/abs/1308.0850
     """
 
-    def __init__(self, ninput=3, nhidden=100, ngauss=30):
+    def __init__(self, nhidden=100, ngauss=30):
+        ninput=3
         super(GravesPredictionNet, self).__init__(
             l1_first=F.Linear(ninput,  4 * nhidden, nobias=True),
             l1_recur=F.Linear(nhidden, 4 * nhidden),
@@ -53,8 +54,10 @@ class GravesPredictionNet(chainer.FunctionSet):
             l4=F.Linear(nhidden * 3, 1 + ngauss * 6)
         )
 
-    def initial_state(self, shape, context, mod):
+    def initial_state(self, minibatch_size, context, mod):
         state = dict()
+        nhidden = self.l1_recur.W.shape[1]
+        shape = (minibatch_size, nhidden)
         make_v = lambda m, s: chainer.Variable(context(m.zeros(s, dtype=numpy.float32)))
         for n in range(1, 4):
             state.update(
