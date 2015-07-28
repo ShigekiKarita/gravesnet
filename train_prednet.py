@@ -18,6 +18,7 @@ model = GravesPredictionNet()
 mod = chainer.cuda
 context = lambda x: x
 if chainer.cuda.available:
+    print("use gpu")
     chainer.cuda.init()
     model.to_gpu()
     context = chainer.cuda.to_gpu
@@ -28,7 +29,7 @@ def mini_batch(mb_size, storage, index):
     return numpy.array([storage[(jump * j + index) % xs_size] for j in range(mb_size)])
 
 if __name__ == '__main__':
-    xs, es = parse_IAMxml("res/strokesz.xml")
+    xs, es = pickle.load("res/trainset.npy") #parse_IAMxml("res/strokesz.xml")
     t = 0
     mb_size = 8
     n_hidden = 100
