@@ -5,7 +5,7 @@ python:
   - "3.4"
 
 install:
-  - pip install chainer nose
+  - pip install chainer nose scipy
 
 script:
   - nosetests -a '!gpu'
