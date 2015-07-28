@@ -26,7 +26,7 @@ class TestGravesPredictionNet(TestCase):
         self.xs, self.es = parse_IAMxml("res/strokesz.xml")
 
     def check_one_step(self):
-        x = self.context(numpy.concatenate((self.xs[0], [self.es[0]]))).reshape(1, 3)
+        x = self.context(numpy.concatenate((self.xs[0], self.es[0]))).reshape(1, 3)
         t_x = self.context(self.xs[1]).reshape(1, 2)
         t_e = self.context(numpy.array(self.es[1]).astype(numpy.int32)).reshape(1, 1)
         self.state = self.model.initial_state(self.shape, self.context, self.mod)
