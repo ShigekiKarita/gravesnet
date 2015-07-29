@@ -5,11 +5,10 @@ import pickle
 import chainer
 import chainer.cuda
 import chainer.optimizers
-
 import six
 import numpy
 
-from src.gravesnet import GravesPredictionNet
+from gravesnet import GravesPredictionNet
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--model', default='res/model', type=str,
