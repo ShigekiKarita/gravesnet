@@ -1,5 +1,5 @@
 import time
-import math
+import argparse
 import pickle
 
 import chainer
@@ -11,12 +11,19 @@ import numpy
 
 from src.gravesnet import GravesPredictionNet
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--model', default='res/model', type=str,
+                    help='Trained model') #パラメータ modelを追加(必須)
+parser.add_argument('--gpu', '-g', default=0, type=int,
+                    help='GPU ID (negative value indicates CPU)')
+args = parser.parse_args()
 
-mb_size = 64
+
+mb_size = 32
 bp_len = 100
 update_len = 1000
 n_epoch = 1000
-use_gpu = True
+use_gpu = args.gpu != -1
 n_hidden = 400
 model = GravesPredictionNet(n_hidden)
 
@@ -26,7 +33,7 @@ mod = numpy
 context = lambda x: x
 if chainer.cuda.available and use_gpu:
     print("use gpu")
-    chainer.cuda.init()
+    chainer.cuda.init(args.gpu)
     model.to_gpu()
     mod = chainer.cuda
     context = chainer.cuda.to_gpu

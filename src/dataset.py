@@ -133,3 +133,18 @@ def parse_IAMdataset(txt_path, data_dir_path):
     xs = numpy.concatenate(xs)
     xs = normalize_strokes(xs)
     return xs, es.reshape(len(es), 1)
+
+
+def parse_IAMdataset_strokes(txt_path, data_dir_path):
+    numpy.seterr(divide="raise")
+    strokes_set = parse_IAMtxt(txt_path, data_dir_path)
+    print("processed file list")
+    xs, es = [], []
+    for line_strokes in strokes_set:
+        for line in line_strokes:
+            print(line)
+            raw_strokes = extract_raw_strokes(line)
+            x, e = prepare_stroke_line(raw_strokes, 0.01)
+            xs.append(x)
+            es.append(e)
+    return xs, es
