@@ -1,10 +1,8 @@
 import sys
 import pickle
 
-import numpy
-
 from compute_meanstd import xs
-from src.dataset import parse_IAMdataset_strokes
+from tool.dataset import parse_IAMdataset_strokes
 
 if __name__ == '__main__':
     d = "/home/karita/Documents/IAM/"
