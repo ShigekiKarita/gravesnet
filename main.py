@@ -19,8 +19,8 @@ args = parser.parse_args()
 
 
 mb_size = 1
-update_len = 1000
-eval_len = 10000
+update_len = 1
+eval_len = 8
 n_epoch = 1000
 use_gpu = args.gpu != -1
 n_hidden = 400
@@ -60,26 +60,30 @@ def reshape2d(x):
 
 
 def create_inout(context, x, e, i, mean, stddev):
-    xs = (x - mean) / stddev
-    xe = context(numpy.concatenate((xs[i], [e[i]]), axis=1).astype(numpy.float32))
-    t_x = context(numpy.array(xs[i + 1]).astype(numpy.float32))
+    xi = (x[i] - mean) / stddev
+    xe = context(numpy.concatenate((xi, [e[i]]), axis=1).astype(numpy.float32))
+    xo = (x[i+1] - mean) / stddev
+    t_x = context(numpy.array(xo).astype(numpy.float32))
     t_e = context(numpy.array([e[i + 1]]).astype(numpy.int32))
     return tuple(reshape2d(i) for i in (xe, t_x, t_e))
 
 
-def evaluate(xs, es, context):
+def evaluate(context, state, xs, es, mean, stddev):
     total = mod.zeros(())
-    state = model.initial_state(1, context, False)
-    m = 1000
-    n = numpy.random.randint(0, 100000)
-    for i in range(n, n + m):
-        x = context(numpy.concatenate((xs[i], es[i]), axis=1).reshape(1, 3).astype(numpy.float32))
-        tx = context(xs[i+1]).reshape(1, 2)
-        te = context(es[i+1]).reshape(1, 1)
-        # inout = create_inout(1, context, xs, es, i)
-        state, loss = model.forward_one_step(state, x, tx, te, train=False)
-        total += loss.data.reshape(())
-    return chainer.cuda.to_cpu(total) / m
+    for v in state.values():
+        v.volatile = True
+    indices = numpy.arange(len(es))
+    numpy.random.shuffle(indices)
+    for i in indices[:eval_len]:
+        x = xs[i]
+        e = es[i]
+        for t in range(len(es[i]) - 1):
+            ci, cx, ce = create_inout(context, x, e, t, mean, stddev)
+            state_ev, loss = model.forward_one_step(state, ci, cx, ce, train=False)
+            total += loss.data.reshape(())
+    for v in state.values():
+        v.volatile = False
+    return chainer.cuda.to_cpu(total) / eval_len
 
 
 if __name__ == '__main__':
@@ -95,19 +99,23 @@ if __name__ == '__main__':
     rmsprop = chainer.optimizers.RMSpropGraves()
     rmsprop.setup(model.collect_parameters())
     total_loss = mod.zeros(())
-    prev = time.time()
+
     indices = numpy.arange(len(es))
+    prev = time.time()
+    n_point = 0
     for epoch in range(n_epoch):
         numpy.random.shuffle(indices)
-        for n in indices:
-            x = xs[n]
-            e = es[n]
+        for i, n in zip(indices, range(len(es))):
+            x = xs[i]
+            e = es[i]
             seq_len = len(e)
+
             for t in range(seq_len - 1):
                 inout = create_inout(context, x, e, t, mean, stddev)
                 state, loss_t = model.forward_one_step(state, *inout)
                 accum_loss += loss_t
                 total_loss += loss_t.data.reshape(())
+                n_point += 1
 
             rmsprop.zero_grads()
             accum_loss.backward()
@@ -117,13 +125,16 @@ if __name__ == '__main__':
 
             if (n + 1) % update_len == 0:
                 now = time.time()
-                throuput = float(update_len) / (now - prev)
+                throuput = float(n_point) / (now - prev)
                 average_loss = chainer.cuda.to_cpu(total_loss) / update_len
-                print('iter {} training loss: {:.6f} ({:.2f} iters/sec)'.format(
-                    t + 1, average_loss, throuput))
-            if (n + 1) & eval_len == 0:
-                ev_loss = evaluate(txs, tes, context)
-                print('test loss: {}'.format(ev_loss))
+                print('iter {} training loss: {:.6f} ({:.2f} point/sec)'.format(
+                    n + 1, average_loss, throuput))
                 prev = now
                 total_loss.fill(0)
-            # pickle.dump(model, open('model%04d' % (i+1), 'wb'), -1)
+                n_point = 0
+
+            if (n + 1) % eval_len == 0:
+                print("evaluating ...")
+                ev_loss = evaluate(context, state, txs, tes, mean, stddev)
+                print('test loss: {}'.format(ev_loss))
+                # pickle.dump(model, open('model%04d' % (i+1), 'wb'), -1)
