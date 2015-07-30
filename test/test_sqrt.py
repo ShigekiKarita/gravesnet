@@ -4,9 +4,10 @@ import chainer
 from chainer import testing
 from chainer import cuda
 from chainer import gradient_check
-from chainer.testing import attr, condition, run_module
+from chainer.testing import attr, condition
 import numpy
-from src.sqrt import mysqrt
+
+from src.functions.sqrt import mysqrt
 
 if cuda.available:
     cuda.init()

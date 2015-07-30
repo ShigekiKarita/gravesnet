@@ -5,10 +5,9 @@ from chainer import testing
 from chainer.gradient_check import assert_allclose
 from chainer import cuda
 from chainer.testing import attr, condition
-
 import numpy
 
-from src.vec_sub_mat import vec_sub_mat
+from src.functions.vec_sub_mat import vec_sub_mat
 
 if cuda.available:
     cuda.init()

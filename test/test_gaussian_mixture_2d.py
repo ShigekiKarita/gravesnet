@@ -8,9 +8,9 @@ from chainer import gradient_check
 from chainer import testing
 from chainer.testing import attr, condition
 
-from src.gaussian_mixture_2d import gaussian_mixture_2d
-from src.gaussian_mixture_2d_ref import gaussian_mixture_2d_ref
-import gravesnet
+from src.functions.gaussian_mixture_2d import gaussian_mixture_2d
+from src.functions.gaussian_mixture_2d_ref import gaussian_mixture_2d_ref
+from src import gravesnet
 
 if cuda.available:
     cuda.init()

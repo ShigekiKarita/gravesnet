@@ -2,11 +2,10 @@ import chainer
 import chainer.functions as F
 from chainer import cuda
 
-from src.gaussian_mixture_2d import gaussian_mixture_2d
-from src.gaussian_mixture_2d_ref import gaussian_mixture_2d_ref
-from src.spilit_axis import split_axis_by_widths
-from src.gradient_clip import gradient_clip
-from src.sum_axis import sum_axis
+from src.functions.gaussian_mixture_2d_ref import gaussian_mixture_2d_ref
+from src.functions.spilit_axis import split_axis_by_widths
+from src.functions.gradient_clip import gradient_clip
+from src.functions.sum_axis import sum_axis
 
 
 def split_args(m, y, t_x, t_e):
@@ -28,7 +27,7 @@ def concat_losses(p, e, t_e):
 
 def loss_func(m, y, t_x, t_e):
     x, e = split_args(m, y, t_x, t_e)
-    p = gaussian_mixture_2d(*x)
+    p = gaussian_mixture_2d_ref(*x)
     return concat_losses(p, e, t_e)
 
 

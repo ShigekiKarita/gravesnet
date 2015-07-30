@@ -4,10 +4,9 @@ import chainer
 from chainer import cuda
 from chainer.gradient_check import assert_allclose
 from chainer.testing import attr, condition, run_module
-
 import numpy
 
-from src.gradient_clip import gradient_clip
+from src.functions.gradient_clip import gradient_clip
 
 
 if cuda.available:

@@ -1,13 +1,13 @@
 from unittest import TestCase
-from chainer import testing
 
+from chainer import testing
 import chainer
 from chainer import cuda
 from chainer.gradient_check import assert_allclose
-from chainer.testing import attr, condition, run_module
+from chainer.testing import attr, condition
 import numpy
 
-from src.sum_axis import sum_axis
+from src.functions.sum_axis import sum_axis
 
 if cuda.available:
     cuda.init()

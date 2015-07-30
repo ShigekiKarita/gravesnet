@@ -8,28 +8,28 @@ import chainer.optimizers
 import six
 import numpy
 
-from gravesnet import GravesPredictionNet
+from src.gravesnet import GravesPredictionNet
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--model', default='res/model', type=str,
-                    help='Trained model') #パラメータ modelを追加(必須)
+                    help='Trained model')
 parser.add_argument('--gpu', '-g', default=0, type=int,
                     help='GPU ID (negative value indicates CPU)')
 args = parser.parse_args()
 
 
-mb_size = 32
-bp_len = 100
+mb_size = 1
 update_len = 1000
+eval_len = 10000
 n_epoch = 1000
 use_gpu = args.gpu != -1
 n_hidden = 400
 model = GravesPredictionNet(n_hidden)
 
-
 range = six.moves.range
 mod = numpy
 context = lambda x: x
+
 if chainer.cuda.available and use_gpu:
     print("use gpu")
     chainer.cuda.init(args.gpu)
@@ -38,9 +38,15 @@ if chainer.cuda.available and use_gpu:
     context = chainer.cuda.to_gpu
 
 
+def merge_strokes_in_line(lines, elem_type):
+    return [numpy.concatenate(l).astype(elem_type) for l in lines]
+
+
 def load_dataset(path):
-    xs, es = pickle.load(open(path, 'rb'))
-    return numpy.float32(xs), numpy.int32(es)
+    x, e = pickle.load(open(path, 'rb'))
+    x = merge_strokes_in_line(x, numpy.float32)
+    e = merge_strokes_in_line(e, numpy.int32)
+    return x, e
 
 
 def mini_batch(mb_size, xs, index):
@@ -49,13 +55,16 @@ def mini_batch(mb_size, xs, index):
     return numpy.array([xs[(jump * j + index) % xs_size] for j in range(mb_size)])
 
 
-def create_inout(mb_size, context, xs, es, i):
-    x_batch = mini_batch(mb_size, xs, i)
-    e_batch = mini_batch(mb_size, es, i)
-    xe_batch = context(numpy.concatenate((x_batch, e_batch), axis=1).astype(numpy.float32))
-    t_x_batch = context(mini_batch(mb_size, xs, i + 1))
-    t_e_batch = context(mini_batch(mb_size, es, i + 1))
-    return xe_batch, t_x_batch, t_e_batch
+def reshape2d(x):
+    return x.reshape(1, len(x))
+
+
+def create_inout(context, x, e, i, mean, stddev):
+    xs = (x - mean) / stddev
+    xe = context(numpy.concatenate((xs[i], [e[i]]), axis=1).astype(numpy.float32))
+    t_x = context(numpy.array(xs[i + 1]).astype(numpy.float32))
+    t_e = context(numpy.array([e[i + 1]]).astype(numpy.int32))
+    return tuple(reshape2d(i) for i in (xe, t_x, t_e))
 
 
 def evaluate(xs, es, context):
@@ -74,11 +83,12 @@ def evaluate(xs, es, context):
 
 
 if __name__ == '__main__':
-    xs, es = load_dataset("res/trainset.npy")
-    txs, tes = load_dataset("res/testset_v.npy")
-    print("train", es.shape, "test", tes.shape)
-
+    d = "/home/karita/Desktop/res_listed/"
+    xs, es = load_dataset(d + "trainset_strokes.npy")
+    txs, tes = load_dataset(d + "testset_v_strokes.npy")
+    mean, stddev = pickle.load(open(d + "trainset_mean_std.npy", "rb"))
     print("load dataset")
+    print("train", len(es), "test", len(tes))
 
     state = model.initial_state(mb_size, context)
     accum_loss = chainer.Variable(mod.zeros((), dtype=numpy.float32))
@@ -86,30 +96,34 @@ if __name__ == '__main__':
     rmsprop.setup(model.collect_parameters())
     total_loss = mod.zeros(())
     prev = time.time()
-    jump = xs.shape[0] // mb_size
+    indices = numpy.arange(len(es))
+    for epoch in range(n_epoch):
+        numpy.random.shuffle(indices)
+        for n in indices:
+            x = xs[n]
+            e = es[n]
+            seq_len = len(e)
+            for t in range(seq_len - 1):
+                inout = create_inout(context, x, e, t, mean, stddev)
+                state, loss_t = model.forward_one_step(state, *inout)
+                accum_loss += loss_t
+                total_loss += loss_t.data.reshape(())
 
-    for i in six.moves.range(jump * n_epoch):
-        inout = create_inout(mb_size, context, xs, es, i)
-        state, loss_i = model.forward_one_step(state, *inout)
-        accum_loss += loss_i
-        total_loss += loss_i.data.reshape(())
-
-        if (i + 1) % bp_len == 0:
             rmsprop.zero_grads()
             accum_loss.backward()
             accum_loss.unchain_backward()
             accum_loss = chainer.Variable(mod.zeros((), dtype=numpy.float32))
             rmsprop.update()
 
-        if (i + 1) % update_len == 0:
-            ev_loss = evaluate(txs, tes, context)
-            now = time.time()
-            throuput = float(update_len) / (now - prev)
-            avg_loss = chainer.cuda.to_cpu(total_loss) / update_len
-            print('iter {} training loss: {:.6f} ({:.2f} iters/sec)'.format(
-                i + 1, avg_loss, throuput))
-            print('test loss: {}'.format(ev_loss))
-            prev = now
-            total_loss.fill(0)
-
+            if (n + 1) % update_len == 0:
+                now = time.time()
+                throuput = float(update_len) / (now - prev)
+                average_loss = chainer.cuda.to_cpu(total_loss) / update_len
+                print('iter {} training loss: {:.6f} ({:.2f} iters/sec)'.format(
+                    t + 1, average_loss, throuput))
+            if (n + 1) & eval_len == 0:
+                ev_loss = evaluate(txs, tes, context)
+                print('test loss: {}'.format(ev_loss))
+                prev = now
+                total_loss.fill(0)
             # pickle.dump(model, open('model%04d' % (i+1), 'wb'), -1)

@@ -2,14 +2,13 @@ from unittest import TestCase
 
 import chainer
 from chainer import cuda
-from chainer.functions import concat, split_axis
+from chainer.functions import concat
 from chainer.gradient_check import assert_allclose
 from chainer import testing
 from chainer.testing import attr, condition
-
 import numpy
 
-from src.spilit_axis import split_axis_by_widths
+from src.functions.spilit_axis import split_axis_by_widths
 
 
 if cuda.available:
