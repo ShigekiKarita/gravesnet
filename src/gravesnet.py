@@ -54,15 +54,15 @@ class GravesPredictionNet(chainer.FunctionSet):
         )
 
     def initial_state(self, minibatch_size, context, train=True):
+        # FIXME: separate initialization of hidden (tmp params) and LSTM (consistent params)
         state = dict()
         nhidden = self.l1_recur.W.shape[1]
         shape = (minibatch_size, nhidden)
-        make_v = lambda : chainer.Variable(context(numpy.zeros(shape, dtype=numpy.float32)), volatile=not train)
         for n in range(1, 4):
             state.update(
                 {
-                    'h%s' % n: make_v(),
-                    'c%s' % n: make_v()
+                    'h%s' % n: chainer.Variable(context(numpy.zeros(shape, dtype=numpy.float32)), volatile=not train),
+                    'c%s' % n: chainer.Variable(context(numpy.zeros(shape, dtype=numpy.float32)), volatile=not train)
                 }
             )
         return state
