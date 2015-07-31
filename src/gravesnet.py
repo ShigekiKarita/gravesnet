@@ -53,33 +53,29 @@ class GravesPredictionNet(chainer.FunctionSet):
             l4=F.Linear(nhidden * 3, 1 + ngauss * 6)
         )
 
-    def initial_state(self, minibatch_size, context, train=True):
-        # FIXME: separate initialization of hidden (tmp params) and LSTM (consistent params)
+    def initial_state(self, minibatch_size, context, label, train=True):
         state = dict()
         nhidden = self.l1_recur.W.shape[1]
         shape = (minibatch_size, nhidden)
         for n in range(1, 4):
-            state.update(
-                {
-                    'h%s' % n: chainer.Variable(context(numpy.zeros(shape, dtype=numpy.float32)), volatile=not train),
-                    'c%s' % n: chainer.Variable(context(numpy.zeros(shape, dtype=numpy.float32)), volatile=not train)
-                }
-            )
+            state.update({
+                '%s%s' % (label, n): chainer.Variable(context(numpy.zeros(shape, dtype=numpy.float32)), volatile=not train)
+            })
         return state
 
-    def forward_one_step(self, state, x_data, t_x_data, t_e_data, train=True):
+    def forward_one_step(self, hidden_state, lstm_cells, x_data, t_x_data, t_e_data, train=True):
         x = chainer.Variable(x_data, volatile=not train)
         t_x = chainer.Variable(t_x_data, volatile=not train)
         t_e = chainer.Variable(t_e_data, volatile=not train)
 
-        h1_in = self.l1_first(x) + self.l1_recur(state['h1'])
-        c1, h1 = F.lstm(state['c1'], h1_in)
+        h1_in = self.l1_first(x) + self.l1_recur(hidden_state['h1'])
+        c1, h1 = F.lstm(lstm_cells['c1'], h1_in)
         h1 = gradient_clip(h1, 10.0)
-        h2_in = self.l2_first(x) + self.l2_recur(state['h2']) + self.l2_input(h1)
-        c2, h2 = F.lstm(state['c2'], h2_in)
+        h2_in = self.l2_first(x) + self.l2_recur(hidden_state['h2']) + self.l2_input(h1)
+        c2, h2 = F.lstm(lstm_cells['c2'], h2_in)
         h2 = gradient_clip(h2, 10.0)
-        h3_in = self.l3_first(x) + self.l3_recur(state['h3']) + self.l3_input(h2)
-        c3, h3 = F.lstm(state['c3'], h3_in)
+        h3_in = self.l3_first(x) + self.l3_recur(hidden_state['h3']) + self.l3_input(h2)
+        c3, h3 = F.lstm(lstm_cells['c3'], h3_in)
         h3 = gradient_clip(h3, 10.0)
 
         y = self.l4(F.concat((h1, h2, h3)))
@@ -87,8 +83,9 @@ class GravesPredictionNet(chainer.FunctionSet):
         n = int((y.data.shape[1] - 1) / 6)
         loss = loss_func(n, y, t_x, t_e)
 
-        state = {'c1': c1, 'h1': h1, 'c2': c2, 'h2': h2, 'c3': c3, 'h3': h3}
-        return state, loss
+        hidden_state = {'h1': h1, 'h2': h2, 'h3': h3}
+        lstm_cells = {'c1': c1, 'c2': c2, 'c3': c3}
+        return hidden_state, lstm_cells, loss
 
 
 class GravesSynthesisNet(chainer.FunctionSet):
