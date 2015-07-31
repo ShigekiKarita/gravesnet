@@ -8,15 +8,19 @@ from src.functions.gradient_clip import gradient_clip
 from src.functions.sum_axis import sum_axis
 
 
-def split_args(m, y, t_x, t_e):
+def gauss_bernoulli_params(m, y):
     y_mixws, y_means, y_stdds, y_corrs, y_e = split_axis_by_widths(y, [m, 2 * m, 2 * m, m, 1])
     y_mixws = F.softmax(y_mixws)
     y_means0, y_means1 = split_axis_by_widths(y_means, 2)
     y_stdds0, y_stdds1 = split_axis_by_widths(F.exp(y_stdds), 2)
     y_corrs = F.tanh(y_corrs)
+    return (y_mixws, y_means0, y_means1, y_stdds0, y_stdds1, y_corrs), y_e
 
-    t_x1, t_x2 = split_axis_by_widths(t_x, [1, 1])
-    return (y_mixws, y_means0, y_means1, y_stdds0, y_stdds1, y_corrs, t_x1, t_x2), (y_e, t_e)
+
+def split_args(m, y, t_x, t_e):
+    gps, y_e = gauss_bernoulli_params(m, y)
+    t_x = split_axis_by_widths(t_x, [1, 1])
+    return gps + t_x, (y_e, t_e)
 
 
 def concat_losses(p, e, t_e):
@@ -29,6 +33,11 @@ def loss_func(m, y, t_x, t_e):
     x, e = split_args(m, y, t_x, t_e)
     p = gaussian_mixture_2d_ref(*x)
     return concat_losses(p, e, t_e)
+
+
+# TODO: implement nice gaussian function to plot
+def plot_func(model, x):
+    return lambda x, y: (x, y)
 
 
 class GravesPredictionNet(chainer.FunctionSet):
@@ -63,10 +72,8 @@ class GravesPredictionNet(chainer.FunctionSet):
             })
         return state
 
-    def forward_one_step(self, hidden_state, lstm_cells, x_data, t_x_data, t_e_data, train=True):
+    def bottle_neck(self, hidden_state, lstm_cells, x_data, train):
         x = chainer.Variable(x_data, volatile=not train)
-        t_x = chainer.Variable(t_x_data, volatile=not train)
-        t_e = chainer.Variable(t_e_data, volatile=not train)
 
         h1_in = self.l1_first(x) + self.l1_recur(hidden_state['h1'])
         c1, h1 = F.lstm(lstm_cells['c1'], h1_in)
@@ -80,11 +87,27 @@ class GravesPredictionNet(chainer.FunctionSet):
 
         y = self.l4(F.concat((h1, h2, h3)))
         y = gradient_clip(y, 100.0)
+
         n = int((y.data.shape[1] - 1) / 6)
-        loss = loss_func(n, y, t_x, t_e)
+        gi, b = gauss_bernoulli_params(n, y)
 
         hidden_state = {'h1': h1, 'h2': h2, 'h3': h3}
-        lstm_cells = {'c1': c1, 'c2': c2, 'c3': c3}
+        if train:
+            lstm_cells = {'c1': c1, 'c2': c2, 'c3': c3}
+
+        return gi, b, hidden_state, lstm_cells
+
+    def forward_one_step(self, hidden_state, lstm_cells, x_data, t_x_data, t_e_data, train=True):
+        x = chainer.Variable(x_data, volatile=not train)
+        t_x = chainer.Variable(t_x_data, volatile=not train)
+        t_e = chainer.Variable(t_e_data, volatile=not train)
+
+        gps, y_e, hidden_state, lstm_cells = self.bottle_neck(hidden_state, lstm_cells, x_data, train)
+        t_x = split_axis_by_widths(t_x, [1, 1])
+        gi, e = gps + t_x, (y_e, t_e)
+        p = gaussian_mixture_2d_ref(*gi)
+        loss = concat_losses(p, e, t_e)
+
         return hidden_state, lstm_cells, loss
 
 
