@@ -69,7 +69,7 @@ def evaluate(context, model, lstm_cells: chainer.Variable,
 
         for t in range(len(es[i]) - 1):
             ci, cx, ce = create_inout(context, x, e, t, mean, stddev)
-            hidden_state, _, loss = model.forward_one_step(hidden_state, lstm_cells, ci, cx, ce, train=False)
+            hidden_state, lstm_cells, loss = model.forward_one_step(hidden_state, lstm_cells, ci, cx, ce, train=False)
             total += loss.data.reshape(())
 
     set_volatile(lstm_cells, False)
@@ -153,7 +153,8 @@ def optimize(model, sizes: OptimizationSizes, data_dir: str):
                     loss_point_train / sizes.eval,
                     loss_seq_train / sizes.eval))
                 sys.stdout.flush()
-                loss_point, loss_seq = evaluate(context, model, lstm_cells, sizes, txs, tes, mean, stddev)
+                lstm_copy = lstm_cells.copy()
+                loss_point, loss_seq = evaluate(context, model, lstm_copy, sizes, txs, tes, mean, stddev)
                 print('\ttest:  [loss/point: {:.6f}, loss/seq: {:.6f}]'.format(loss_point, loss_seq))
                 sys.stdout.flush()
                 loss_point_train = 0.0

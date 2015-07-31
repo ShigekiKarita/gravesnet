@@ -23,7 +23,7 @@ def split_args(m, y, t_x, t_e):
     return gps + t_x, (y_e, t_e)
 
 
-def concat_losses(p, e, t_e):
+def concat_losses(p, e):
     loss_x = -F.sum(F.log(sum_axis(p))) / numpy.float32(p.data.shape[0])
     loss_e = F.sigmoid_cross_entropy(*e)
     return loss_x + loss_e
@@ -32,7 +32,7 @@ def concat_losses(p, e, t_e):
 def loss_func(m, y, t_x, t_e):
     x, e = split_args(m, y, t_x, t_e)
     p = gaussian_mixture_2d_ref(*x)
-    return concat_losses(p, e, t_e)
+    return concat_losses(p, e)
 
 
 # TODO: implement nice gaussian function to plot
@@ -104,9 +104,9 @@ class GravesPredictionNet(chainer.FunctionSet):
 
         gps, y_e, hidden_state, lstm_cells = self.bottle_neck(hidden_state, lstm_cells, x_data, train)
         t_x = split_axis_by_widths(t_x, [1, 1])
-        gi, e = gps + t_x, (y_e, t_e)
+        gi, e = (gps + tuple(t_x)), (y_e, t_e)
         p = gaussian_mixture_2d_ref(*gi)
-        loss = concat_losses(p, e, t_e)
+        loss = concat_losses(p, e)
 
         return hidden_state, lstm_cells, loss
 
