@@ -225,11 +225,11 @@ def peephole_lstm(c_prev, a, x):
         function. Each of ``y``, ``c`` and ``h`` has ``n_units`` channels.
         Most typical preparation of ``a, x`` is:
 
-        >>> model = FunctionSet(w=F.Linear(n_units, 3 * n_units),
-        ...                     v=F.Linear(n_units, 3 * n_units),
-        ...                     u=F.Linear(n_units, 3 * n_units),
-        ...                     p=F.Linear(n_units, n_units),
-        ...                     q=F.Linear(n_units, n_units),
+        >>> model = FunctionSet(p=F.Linear(n_units, n_units),
+        ...                     q=F.Linear(n_units, n_units, nobias=True),
+        ...                     w=F.Linear(n_units, 3 * n_units),
+        ...                     v=F.Linear(n_units, 3 * n_units, nobias=True),
+        ...                     u=F.Linear(n_units, 3 * n_units, nobias=True),
         ...                     ...)
         >>> a = model.p(y) + model.q(h)
         >>> x = model.w(y) + model.v(h) + model.u(c)
