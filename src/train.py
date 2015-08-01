@@ -121,12 +121,12 @@ def optimize(model, sizes: OptimizationSizes, data_dir: str):
                 total_loss += loss_t.data.reshape(())
                 n_point += 1
 
-            rmsprop.zero_grads()
-            accum_loss.backward()
-            accum_loss.unchain_backward()
-            rmsprop.update()
-
             if (n + 1) % sizes.train == 0:
+                rmsprop.zero_grads()
+                accum_loss.backward()
+                accum_loss.unchain_backward()
+                rmsprop.update()
+
                 now = time.time()
                 t_loss = chainer.cuda.to_cpu(total_loss)
                 print('epoch {}, iter {}, loss/point: {:.6f}, loss/seq: {:.6f}, point/sec: {:.2f} '.format(

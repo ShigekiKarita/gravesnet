@@ -6,6 +6,7 @@ from src.functions.gaussian_mixture_2d_ref import gaussian_mixture_2d_ref
 from src.functions.spilit_axis import split_axis_by_widths
 from src.functions.gradient_clip import gradient_clip
 from src.functions.sum_axis import sum_axis
+from src.functions.peephole_lstm import peephole_lstm
 
 
 def gauss_bernoulli_params(m, y):
