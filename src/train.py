@@ -10,7 +10,9 @@ import numpy
 
 
 class OptimizationSizes(object):
-    def __init__(self, epoch_size=1000, train_size=1, eval_size=8, mini_batch_size=1):
+    def __init__(self,
+                 epoch_size=1000, train_size=1,
+                 eval_size=8, mini_batch_size=1):
         self.epoch = epoch_size
         self.train = train_size
         self.eval = eval_size
@@ -31,7 +33,9 @@ def load_dataset(path):
 def mini_batch(mb_size, xs, index):
     xs_size = xs.shape[0]
     jump = xs_size // mb_size
-    return numpy.array([xs[(jump * j + index) % xs_size] for j in range(mb_size)])
+    return numpy.array(
+        [xs[(jump * j + index) % xs_size] for j in range(mb_size)]
+    )
 
 
 def reshape2d(x):
@@ -66,10 +70,11 @@ def evaluate(context, model, lstm_cells: chainer.Variable,
         e = es[i]
         total_seq_len += len(e) - 1
         hidden_state = model.initial_state(1, context, "h", train=False)
-
         for t in range(len(es[i]) - 1):
             ci, cx, ce = create_inout(context, x, e, t, mean, stddev)
-            hidden_state, lstm_cells, loss = model.forward_one_step(hidden_state, lstm_cells, ci, cx, ce, train=False)
+            hidden_state, lstm_cells, loss = model.forward_one_step(
+                hidden_state, lstm_cells, ci, cx, ce, train=False
+            )
             total += loss.data.reshape(())
 
     set_volatile(lstm_cells, False)
@@ -113,10 +118,14 @@ def optimize(model, sizes: OptimizationSizes, data_dir: str):
             e = es[i]
             seq_len = len(e)
             hidden_state = model.initial_state(sizes.mini_batch, context, "h")
-            accum_loss = chainer.Variable(context(numpy.zeros((), dtype=numpy.float32)))
+            accum_loss = chainer.Variable(
+                context(numpy.zeros((), dtype=numpy.float32))
+            )
             for t in range(seq_len - 1):
                 inout = create_inout(context, x, e, t, mean, stddev)
-                hidden_state, lstm_cells, loss_t = model.forward_one_step(hidden_state, lstm_cells, *inout)
+                hidden_state, lstm_cells, loss_t = model.forward_one_step(
+                    hidden_state, lstm_cells, *inout
+                )
                 accum_loss += loss_t
                 total_loss += loss_t.data.reshape(())
                 n_point += 1
@@ -129,11 +138,12 @@ def optimize(model, sizes: OptimizationSizes, data_dir: str):
 
                 now = time.time()
                 t_loss = chainer.cuda.to_cpu(total_loss)
-                print('epoch {}, iter {}, loss/point: {:.6f}, loss/seq: {:.6f}, point/sec: {:.2f} '.format(
-                    epoch, n,
-                    t_loss / n_point,
-                    t_loss / sizes.train,
-                    float(n_point) / (now - prev)))
+                print(
+                    'epoch {}, iter {}, loss/point: {:.6f}, loss/seq: {:.6f}, point/sec: {:.2f} '.format(
+                        epoch, n,
+                        t_loss / n_point,
+                        t_loss / sizes.train,
+                        float(n_point) / (now - prev)))
                 sys.stdout.flush()
                 loss_point_train += t_loss / n_point
                 loss_seq_train += t_loss
@@ -145,7 +155,9 @@ def optimize(model, sizes: OptimizationSizes, data_dir: str):
                 pickle.dump(model, open('model_%08d' % n_eval, 'wb'), -1)
                 for k, v in lstm_cells.items():
                     d = chainer.cuda.to_cpu(v.data)
-                    pickle.dump(d, open('lstm_{}_{:08d}'.format(k, n_eval), 'wb'), -1)
+                    pickle.dump(
+                        d, open('lstm_{}_{:08d}'.format(k, n_eval), 'wb'), -1
+                    )
 
                 n_eval += 1
                 print("eval-%08d" % n_eval)
@@ -154,8 +166,14 @@ def optimize(model, sizes: OptimizationSizes, data_dir: str):
                     loss_seq_train / sizes.eval))
                 sys.stdout.flush()
                 lstm_copy = lstm_cells.copy()
-                loss_point, loss_seq = evaluate(context, model, lstm_copy, sizes, txs, tes, mean, stddev)
-                print('\ttest:  [loss/point: {:.6f}, loss/seq: {:.6f}]'.format(loss_point, loss_seq))
+                loss_point, loss_seq = evaluate(
+                    context, model, lstm_copy, sizes, txs, tes, mean, stddev
+                )
+                print(
+                    '\ttest:  [loss/point: {:.6f}, loss/seq: {:.6f}]'.format(
+                        loss_point, loss_seq
+                    )
+                )
                 sys.stdout.flush()
                 loss_point_train = 0.0
                 loss_seq_train = 0.0

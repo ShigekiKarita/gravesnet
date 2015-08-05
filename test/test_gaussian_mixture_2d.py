@@ -2,6 +2,7 @@ import unittest
 
 import numpy
 from numpy.random import uniform, binomial
+
 import chainer
 from chainer import cuda
 from chainer import gradient_check
@@ -11,6 +12,7 @@ from chainer.testing import attr, condition
 from src.functions.gaussian_mixture_2d import gaussian_mixture_2d
 from src.functions.gaussian_mixture_2d_ref import gaussian_mixture_2d_ref
 from src import gravesnet
+
 
 if cuda.available:
     cuda.init()

@@ -10,7 +10,8 @@ from src.functions.peephole_lstm import peephole_lstm
 
 
 def gauss_bernoulli_params(m, y):
-    y_mixws, y_means, y_stdds, y_corrs, y_e = split_axis_by_widths(y, [m, 2 * m, 2 * m, m, 1])
+    width = [m, 2 * m, 2 * m, m, 1]
+    y_mixws, y_means, y_stdds, y_corrs, y_e = split_axis_by_widths(y, width)
     y_mixws = F.softmax(y_mixws)
     y_means0, y_means1 = split_axis_by_widths(y_means, 2)
     y_stdds0, y_stdds1 = split_axis_by_widths(F.exp(y_stdds), 2)
@@ -47,43 +48,49 @@ class GravesPredictionNet(chainer.FunctionSet):
     """
 
     def __init__(self, nhidden=100, ngauss=30):
-        ninput=3
+        ninput = 3
         super(GravesPredictionNet, self).__init__(
-            l1_first=F.Linear(ninput,  4 * nhidden, nobias=True),
-            l1_recur=F.Linear(nhidden, 4 * nhidden),
+            l1_a=F.Linear(ninput + nhidden, nhidden),
+            l1_x=F.Linear(ninput + 2 * nhidden, 3 * nhidden),
 
-            l2_first=F.Linear(ninput,  4 * nhidden, nobias=True),
-            l2_recur=F.Linear(nhidden, 4 * nhidden),
-            l2_input=F.Linear(nhidden, 4 * nhidden, nobias=True),
+            l2_a=F.Linear(ninput + 2 * nhidden, nhidden),
+            l2_x=F.Linear(ninput + 3 * nhidden, 3 * nhidden),
 
-            l3_first=F.Linear(ninput,  4 * nhidden, nobias=True),
-            l3_recur=F.Linear(nhidden, 4 * nhidden),
-            l3_input=F.Linear(nhidden, 4 * nhidden, nobias=True),
+            l3_a=F.Linear(ninput + 2 * nhidden, nhidden),
+            l3_x=F.Linear(ninput + 3 * nhidden, 3 * nhidden),
 
             l4=F.Linear(nhidden * 3, 1 + ngauss * 6)
         )
 
     def initial_state(self, minibatch_size, context, label, train=True):
         state = dict()
-        nhidden = self.l1_recur.W.shape[1]
+        nhidden = self.l1_a.W.shape[0]
         shape = (minibatch_size, nhidden)
         for n in range(1, 4):
             state.update({
-                '%s%s' % (label, n): chainer.Variable(context(numpy.zeros(shape, dtype=numpy.float32)), volatile=not train)
+                '%s%s' % (label, n):
+                chainer.Variable(
+                    context(numpy.zeros(shape, dtype=numpy.float32)),
+                    volatile=not train)
             })
         return state
 
     def bottle_neck(self, hidden_state, lstm_cells, x_data, train):
         x = chainer.Variable(x_data, volatile=not train)
-
-        h1_in = self.l1_first(x) + self.l1_recur(hidden_state['h1'])
-        c1, h1 = F.lstm(lstm_cells['c1'], h1_in)
+        
+        a1 = self.l1_a(F.concat((x, hidden_state["h1"])))
+        x1 = self.l1_x(F.concat((x, hidden_state["h1"], lstm_cells["c1"])))
+        c1, h1 = peephole_lstm(lstm_cells['c1'], a1, x1)
         h1 = gradient_clip(h1, 10.0)
-        h2_in = self.l2_first(x) + self.l2_recur(hidden_state['h2']) + self.l2_input(h1)
-        c2, h2 = F.lstm(lstm_cells['c2'], h2_in)
+
+        a2 = self.l2_a(F.concat((x, hidden_state["h2"], h1)))
+        x2 = self.l2_x(F.concat((x, hidden_state["h2"], h1, lstm_cells["c2"])))
+        c2, h2 = peephole_lstm(lstm_cells['c2'], a2, x2)
         h2 = gradient_clip(h2, 10.0)
-        h3_in = self.l3_first(x) + self.l3_recur(hidden_state['h3']) + self.l3_input(h2)
-        c3, h3 = F.lstm(lstm_cells['c3'], h3_in)
+
+        a3 = self.l2_a(F.concat((x, hidden_state["h3"], h2)))
+        x3 = self.l2_x(F.concat((x, hidden_state["h3"], h2, lstm_cells["c3"])))
+        c3, h3 = peephole_lstm(lstm_cells['c3'], a3, x3)
         h3 = gradient_clip(h3, 10.0)
 
         y = self.l4(F.concat((h1, h2, h3)))
