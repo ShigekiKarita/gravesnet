@@ -9,5 +9,5 @@ if __name__ == '__main__':
         eval_size=4,
         mini_batch_size=1
     )
-    model = GravesPredictionNet(nhidden=400)
+    model = GravesPredictionNet(nhidden=100)
     optimize(model, sizes, data_dir="/home/karita/Desktop/res_listed/")
