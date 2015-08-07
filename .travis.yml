@@ -10,7 +10,8 @@ install:
   - pip install coveralls
 
 script:
-  - nosetests ./test/functions -a '!gpu,!local' --with-xunit --with-coverage --cover-erase --cover-package=src.functions --verbose
+  - ls
+  - nosetests test/functions -a '!gpu,!local' --with-xunit --with-coverage --cover-erase --cover-package=src.functions --verbose
 
 after_success:
   - coveralls
