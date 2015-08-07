@@ -38,6 +38,12 @@ def extract_raw_strokes(xml_path, removal_threshold=100.0):
     return result
 
 
+def extract_raw_text(xml_path):
+    root = parse(xml_path).getroot()
+    transcription = root.find("Transcription")
+    return [t.attrib["text"] for t in transcription.iter("TextLine")]
+
+
 def interpolate_strokes(raw_strokes, interval=0.01):
     result = []
     for t, xy in raw_strokes:
@@ -141,10 +147,12 @@ def parse_IAMdataset_strokes(txt_path, data_dir_path):
     print("processed file list")
     xs, es = [], []
     for line_strokes in strokes_set:
-        for line in line_strokes:
-            print(line)
-            raw_strokes = extract_raw_strokes(line)
+        for line_file_path in line_strokes:
+            print(line_file_path)
+            raw_strokes = extract_raw_strokes(line_file_path)
             x, e = prepare_stroke_line(raw_strokes, 0.01)
             xs.append(x)
             es.append(e)
     return xs, es
+
+
