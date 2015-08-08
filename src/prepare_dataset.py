@@ -9,6 +9,6 @@ if __name__ == '__main__':
     files = ["testset_v", "testset_t", "testset_f", "trainset"]
 
     f = sys.argv[1]
-    xs, es = parse_IAMdataset_strokes(d + "task1/" + f + ".txt", d + "data/lineStrokes")
+    xs, es = parse_IAMdataset_strokes(d + "task1/" + f + ".txt", d + "data/")
     pickle.dump((xs, es), open(f + "_strokes.npy", "wb"), -1)
 

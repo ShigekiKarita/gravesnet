@@ -107,45 +107,54 @@ def parse_IAMxml(xml_path):
     return strokes, endpoints.reshape(len(endpoints), 1)
 
 
-def parse_IAMtxt(txt_path, data_dir_path):
+def parse_dir(label):
+    a = label[:3]
+    b = label[:7]
+    return "/{}/{}/".format(a, b)
+
+
+def parse_IAM_files(txt_path, root, dir, func):
     result = []
     with open(txt_path, 'r') as f:
         line = f.readline()
         while line:
-            line = line.strip()
-            a = line[:3]
-            b = line[:7]
-            dir = "{}/{}/{}/".format(data_dir_path, a, b)
-            files = glob.glob(dir + line + "*.xml")
-            result.append(files)
+            label = line.strip()
+            d = parse_dir(label)
+            x = root + dir + d + label
+            result.append(func(x))
             line = f.readline()
     return result
 
 
-def parse_IAMdataset(txt_path, data_dir_path):
-    numpy.seterr(divide="raise")
+def parse_IAM_stroke_file(txt_path, root):
+    f = lambda x: glob.glob(x + "*.xml")
+    return parse_IAM_files(txt_path, root, "lineStrokes", f)
 
-    strokes_set = parse_IAMtxt(txt_path, data_dir_path)
-    print("processed file list")
-    xs, es = [], []
-    for line_strokes in strokes_set:
-        for line in line_strokes:
-            print(line)
-            raw_strokes = extract_raw_strokes(line)
-            x, e = prepare_stroke_line(raw_strokes, 0.01)
-            xs += x
-            es += e
-    es = numpy.concatenate(es)
-    xs = numpy.concatenate(xs)
-    xs = normalize_strokes(xs)
-    return xs, es.reshape(len(es), 1)
+
+def parse_IAM_ascii_file(txt_path, root):
+    f = lambda x: x + ".txt"
+    return parse_IAM_files(txt_path, root, "ascii", f)
+
+
+def extract_ascii(txt_path):
+    result = []
+    with open(txt_path, 'r') as f:
+        line = f.readline()
+        while not line.startswith("CSR:"):
+            line = f.readline()
+        f.readline()
+        line = f.readline().strip()
+        while line:
+            result.append(line)
+            line = f.readline().strip()
+        return result
 
 
 def parse_IAMdataset_strokes(txt_path, data_dir_path):
     numpy.seterr(divide="raise")
-    strokes_set = parse_IAMtxt(txt_path, data_dir_path)
+    strokes_set = parse_IAM_stroke_file(txt_path, data_dir_path)
     print("processed file list")
-    xs, es = [], []
+    xs, es, ts = [], [], []
     for line_strokes in strokes_set:
         for line_file_path in line_strokes:
             print(line_file_path)
@@ -156,3 +165,14 @@ def parse_IAMdataset_strokes(txt_path, data_dir_path):
     return xs, es
 
 
+def one_hot_vector(line: str):
+    
+
+def parse_IAMdataset_ascii(txt_path, data_dir_path):
+    file_set = parse_IAM_ascii_file(txt_path, data_dir_path)
+    print("processed file list")
+    ts = []
+    for file in file_set:
+        for line in extract_ascii(file):
+           ts.append(one_hot_vector(line))
+    return ts
